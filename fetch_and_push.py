@@ -1,7 +1,7 @@
 """
-Gathers time/date, weather, sunrise/sunset, and each team's next game (as
-configured in teams.json), then pushes them as merge_variables to a TRMNL
-private plugin via its webhook URL.
+Gathers time/date, weather, sunrise/sunset, and each configured team's next
+game or racing series' next race, then pushes them as merge_variables to a
+TRMNL private plugin via its webhook URL.
 
 Required environment variables:
   TRMNL_WEBHOOK_URL      https://usetrmnl.com/api/custom_plugins/<UUID>
@@ -15,7 +15,8 @@ Optional:
   TIMEZONE   IANA tz name for displayed times, default "Europe/London"
   TEMP_UNIT  "celsius" or "fahrenheit", default "celsius"
 
-Teams are configured in teams.json (see SETUP.md) rather than hardcoded here.
+Teams and racing series are configured in teams.json (see SETUP.md) rather than
+hardcoded here.
 """
 
 import json
@@ -80,7 +81,7 @@ def get_env(name, required=True, default=None):
 
 
 def load_teams(path="teams.json"):
-    """Load and validate the user-editable team list.
+    """Load and validate the user-editable sports list.
 
     Structural problems here (missing file, bad JSON, bad shape) are config
     errors, not per-team runtime errors, so they're fatal via fail() — unlike
@@ -101,18 +102,21 @@ def load_teams(path="teams.json"):
         if not isinstance(entry, dict):
             fail(f"{path}[{i}] must be an object")
         provider = entry.get("provider")
-        if provider not in ("espn", "football-data"):
-            fail(f'{path}[{i}]: "provider" must be "espn" or "football-data", got {provider!r}')
+        required_fields = {
+            "espn": ("sport", "abbr"),
+            "espn-racing": ("series",),
+            "football-data": ("competition", "match"),
+        }
+        if not isinstance(provider, str) or provider not in required_fields:
+            fail(
+                f'{path}[{i}]: "provider" must be one of '
+                f'{", ".join(required_fields)}, got {provider!r}'
+            )
         if not entry.get("name"):
             fail(f'{path}[{i}]: missing required field "name"')
-        if provider == "espn":
-            for field in ("sport", "abbr"):
-                if not entry.get(field):
-                    fail(f'{path}[{i}] ({entry["name"]}): missing required field "{field}"')
-        else:  # football-data
-            for field in ("competition", "match"):
-                if not entry.get(field):
-                    fail(f'{path}[{i}] ({entry["name"]}): missing required field "{field}"')
+        for field in required_fields[provider]:
+            if not entry.get(field):
+                fail(f'{path}[{i}] ({entry["name"]}): missing required field "{field}"')
 
     return raw
 
@@ -378,9 +382,51 @@ def get_espn_next_game(sport_path, team_abbr, team_name):
     }
 
 
+def get_espn_next_race(series, display_name):
+    """Next scheduled ESPN racing event as {team, opponent, kickoff_dt}, or None."""
+    today = datetime.now(timezone.utc).date()
+    end_date = today + timedelta(days=SPORTS_HORIZON_DAYS + 10)
+    resp = requests.get(
+        f"https://site.api.espn.com/apis/site/v2/sports/racing/{series}/scoreboard",
+        params={
+            "dates": f"{today:%Y%m%d}-{end_date:%Y%m%d}",
+            "limit": 100,
+        },
+        timeout=15,
+    )
+    resp.raise_for_status()
+    events = resp.json().get("events", [])
+
+    now = datetime.now(timezone.utc)
+
+    upcoming = []
+    for event in events:
+        race_session = next(
+            (session for session in event.get("competitions", [])
+             if session.get("type", {}).get("abbreviation") == "Race"),
+            None,
+        )
+        if not race_session:
+            continue
+        kickoff = datetime.fromisoformat(race_session["date"].replace("Z", "+00:00"))
+        if (
+            race_session.get("status", {}).get("type", {}).get("state") == "pre"
+            and kickoff >= now
+        ):
+            upcoming.append((event, kickoff))
+    if not upcoming:
+        return None
+
+    race, kickoff = min(upcoming, key=lambda item: item[1])
+    return {
+        "team": display_name,
+        "opponent": race["name"],
+        "kickoff_dt": kickoff,
+    }
+
+
 def collect_games(football_data_key, teams_path="teams.json"):
-    """Every followed team's next game, soonest first, dropping teams whose
-    next game is beyond SPORTS_HORIZON_DAYS (i.e. their season is over).
+    """Every followed team's next game or racing event, soonest first.
 
     Teams come from teams.json. A single team's error (network failure, bad
     abbreviation, etc.) is logged as a warning and skipped — it does not
@@ -392,6 +438,8 @@ def collect_games(football_data_key, teams_path="teams.json"):
         try:
             if entry["provider"] == "espn":
                 record = get_espn_next_game(entry["sport"], entry["abbr"], entry["name"])
+            elif entry["provider"] == "espn-racing":
+                record = get_espn_next_race(entry["series"], entry["name"])
             else:  # football-data
                 record = get_football_data_next_match(
                     football_data_key, entry["competition"], entry["match"], entry["name"]
