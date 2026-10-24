@@ -330,7 +330,7 @@ def get_football_data_next_match(api_key, competition, name_query, display_name)
     }
 
 
-def get_espn_next_game(sport_path, team_abbr, team_name):
+def get_espn_next_game(sport_path, team_abbr, team_name, team_id=None):
     """Next game for an ESPN team as {team, opponent, kickoff_dt}, or None.
 
     `sport_path` e.g. "football/nfl", "hockey/nhl", "baseball/mlb"; `team_abbr`
@@ -342,7 +342,7 @@ def get_espn_next_game(sport_path, team_abbr, team_name):
     """
     resp = requests.get(
         f"https://site.api.espn.com/apis/site/v2/sports/{sport_path}"
-        f"/teams/{team_abbr.lower()}/schedule",
+        f"/teams/{team_id or team_abbr.lower()}/schedule",
         timeout=15,
     )
     resp.raise_for_status()
@@ -437,7 +437,9 @@ def collect_games(football_data_key, teams_path="teams.json"):
     for entry in teams:
         try:
             if entry["provider"] == "espn":
-                record = get_espn_next_game(entry["sport"], entry["abbr"], entry["name"])
+                record = get_espn_next_game(
+                    entry["sport"], entry["abbr"], entry["name"], entry.get("team_id")
+                )
             elif entry["provider"] == "espn-racing":
                 record = get_espn_next_race(entry["series"], entry["name"])
             else:  # football-data
@@ -497,7 +499,11 @@ def main():
     merge_variables = build_merge_variables(football_data_key, lat, lon)
 
     resp = requests.post(webhook_url, json={"merge_variables": merge_variables}, timeout=15)
-    resp.raise_for_status()
+    if not resp.ok:
+        fail(
+            f"TRMNL webhook returned HTTP {resp.status_code}: "
+            f"{resp.text[:1000]}"
+        )
     print("Pushed to TRMNL:", merge_variables)
 
 

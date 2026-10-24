@@ -249,6 +249,9 @@ free API key from step 9.2 above.
   `https://site.api.espn.com/apis/site/v2/sports/{sport}/teams` in a browser
   (swap in your `sport` path) and look for that team's `"abbreviation"`
   field in the JSON.
+- `team_id` — optional numeric ESPN team ID for leagues whose schedule endpoint
+   doesn't accept the abbreviation. For example, the Toronto Argonauts use
+   `"abbr": "TAT"` and `"team_id": "85"`.
 
 **`espn-racing` fields:**
 - `series` — ESPN racing series slug, currently `f1` for Formula 1.
