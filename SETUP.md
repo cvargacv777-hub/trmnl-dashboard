@@ -226,14 +226,19 @@ one object per team:
 { "provider": "football-data", "competition": "PL", "match": "liverpool", "name": "Liverpool FC" }
 ```
 
+```json
+{ "provider": "espn-racing", "series": "f1", "name": "Formula 1" }
+```
+
 Add, remove, or edit entries, then run `python fetch_and_push.py` (or
 `python preview.py`) to see the change. A typo in one entry (wrong
 abbreviation, etc.) just drops that team with a warning in the terminal —
 it won't break the others.
 
 **Which provider to use:** ESPN covers the big U.S./Canadian leagues (and
-some soccer) and needs no API key. football-data.org covers European soccer
-leagues in more depth but needs the free API key from step 9.2 above.
+some soccer), and ESPN racing covers Formula 1; both need no API key.
+football-data.org covers European soccer leagues in more depth but needs the
+free API key from step 9.2 above.
 
 **`espn` fields:**
 - `sport` — the league path. Common ones: `football/nfl`, `basketball/nba`,
@@ -245,6 +250,13 @@ leagues in more depth but needs the free API key from step 9.2 above.
   (swap in your `sport` path) and look for that team's `"abbreviation"`
   field in the JSON.
 
+**`espn-racing` fields:**
+- `series` — ESPN racing series slug, currently `f1` for Formula 1.
+- `name` — display name shown on the dashboard, e.g. `Formula 1`.
+
+For racing, the dashboard uses ESPN's scheduled `Race` session start time,
+not the earlier practice or qualifying sessions.
+
 **`football-data` fields:**
 - `competition` — a football-data.org competition code: `PL` (Premier
   League), `PD` (La Liga), `BL1` (Bundesliga), `SA` (Serie A), `FL1`
@@ -253,7 +265,8 @@ leagues in more depth but needs the free API key from step 9.2 above.
   competition (e.g. `"liverpool"` matches "Liverpool FC"). Doesn't need to be
   the full name.
 
-Both providers also need a `name` — the display name shown on the dashboard.
+The `espn` and `football-data` providers also need a `name` — the display name
+shown on the dashboard.
 
 The README's **Notes** section explains the broader constraints (rate
 limits, payload size, panel height) that apply as you add teams. Ask James
@@ -261,8 +274,8 @@ if anything's unclear — that's the fun part.
 
 ### Using a provider that isn't built in yet
 
-`teams.json` only takes parameters for the two providers above — `espn` and
-`football-data`. It can't describe an API ESPN/football-data.org doesn't
+`teams.json` takes parameters for the built-in providers — `espn`,
+`espn-racing`, and `football-data`. It can't describe an API ESPN/football-data.org doesn't
 cover (cricket, say, via a BBC Sport API) just by filling in JSON; there's no
 code yet that knows how to call that API or read its response. Adding one
 means writing a small amount of Python, not editing config:

@@ -11,19 +11,19 @@ a template you control.
 ## How it fits together
 
 - [`fetch_and_push.py`](fetch_and_push.py) — pulls weather/sun from Open-Meteo
-  and, for each team in [`teams.json`](teams.json), its next game from either
+  and each configured team's next game or racing series' next race from either
   football-data.org or ESPN's public API (whichever that entry's `provider`
   says). `collect_games()` merges them into one `games` list, sorted by
-  kickoff, with any team whose next game is past the horizon (see
-  `SPORTS_HORIZON_DAYS`) removed — and any team entry whose fetch fails
+  kickoff, with any entry whose next event is past the horizon (see
+  `SPORTS_HORIZON_DAYS`) removed — and any entry whose fetch fails
   (bad abbreviation, API outage, etc.) logged as a warning and skipped,
   rather than blocking everyone else's games from being pushed. It all goes
   to your TRMNL webhook URL as `merge_variables`.
 - [`teams.json`](teams.json) — the list of teams to track. Edit this file to
   add/remove/swap teams; no Python required for the common case. See
-  [`SETUP.md`](SETUP.md) for the field reference (ESPN sport paths, team
-  abbreviations, football-data competition codes). Tracking a team via a
-  provider that isn't ESPN or football-data.org (say, a cricket API) needs a
+  [`SETUP.md`](SETUP.md) for the field reference (ESPN sport paths, racing
+  series, team abbreviations, football-data competition codes). Tracking a
+  team via a provider that isn't built in (say, a cricket API) needs a
   small Python addition, not just a `teams.json` edit — see SETUP.md's
   "Using a provider that isn't built in yet" for what that involves, and
   [`Next Step Ideas.md`](Next%20Step%20Ideas.md) idea #2 for making that
@@ -214,7 +214,9 @@ TRMNL's 12-pushes/hour cap. Remove it only if you want a single source of truth.
   every team is out of season the panel shows a "No games in the next N days"
   line. `get_espn_next_game()` also filters to games whose status is `pre` and
   whose start time is still in the future, so a *postponed* game (which ESPN
-  leaves looking not-completed) can't show up as the "next" one.
+  leaves looking not-completed) can't show up as the "next" one. For F1,
+  `get_espn_next_race()` selects the scheduled `Race` session, not practice
+  or qualifying.
 - **Bad team config degrades gracefully**: if a `teams.json` entry has a typo
   (wrong ESPN abbreviation, a `match` string that doesn't exist in that
   competition, a transient API error) `collect_games()` logs a `WARNING:` to

@@ -1,7 +1,8 @@
 [
-  { "provider": "football-data", "competition": "PL", "match": "liverpool", "name": "Liverpool FC" },
   { "provider": "espn", "sport": "baseball/mlb",   "abbr": "TOR", "name": "Toronto Blue Jays" },
   { "provider": "espn", "sport": "hockey/nhl",     "abbr": "TOR", "name": "Toronto Maple Leafs" },
   { "provider": "espn", "sport": "basketball/nba", "abbr": "TOR", "name": "Toronto Raptors" },
-  { "provider": "espn", "sport": "football/nfl",   "abbr": "BUF", "name": "Buffalo Bills" }
+  { "provider": "espn", "sport": "football/nfl",   "abbr": "BUF", "name": "Buffalo Bills" },
+  { "provider": "espn", "sport": "football/cfl",   "abbr": "TOR", "name": "Toronto Argonauts" },
+  { "provider": "espn-racing", "series": "f1", "name": "Formula 1" }
 ]
